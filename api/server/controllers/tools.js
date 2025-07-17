@@ -17,6 +17,7 @@ const { loadAuthValues } = require('~/server/services/Tools/credentials');
 const { loadTools } = require('~/app/clients/tools/util');
 const { getRoleByName } = require('~/models/Role');
 const { getMessage } = require('~/models/Message');
+const ToolPermissionManager = require('~/server/services/ToolPermissionManager');
 
 const fieldsMap = {
   [Tools.execute_code]: [EnvVar.CODE_API_KEY],
@@ -147,6 +148,12 @@ const callTool = async (req, res) => {
       );
       return res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
     }
+
+    logger.info(
+      `[${toolId}/call] User ${req.user.id} is calling tool with args: ${JSON.stringify(args)}`,
+      `[${toolId}/call] Requesting permission for tool: ${toolId}`,
+    );
+
     const { loadedTools } = await loadTools({
       user: req.user.id,
       tools: [toolId],
@@ -231,6 +238,20 @@ const callTool = async (req, res) => {
   }
 };
 
+// Endpoint for frontend to respond to tool permission requests
+const respondToolPermission = (req, res) => {
+  const { permissionId, userId, granted } = req.body;
+  const key = `${permissionId}:${userId}`;
+  logger.info(`[respondToolPermission] Received permission response: key=${key}, granted=${granted}`);
+  // Use the global ToolPermissionManager to resolve the request
+  const resolved = ToolPermissionManager.resolvePermission(key, granted);
+  if (resolved) {
+    res.status(200).json({ success: true });
+  } else {
+    res.status(404).json({ message: 'Permission request not found or already handled' });
+  }
+};
+
 const getToolCalls = async (req, res) => {
   try {
     const { conversationId } = req.query;
@@ -246,4 +267,5 @@ module.exports = {
   callTool,
   getToolCalls,
   verifyToolAuth,
+  respondToolPermission,
 };

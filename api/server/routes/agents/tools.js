@@ -1,5 +1,5 @@
 const express = require('express');
-const { callTool, verifyToolAuth, getToolCalls } = require('~/server/controllers/tools');
+const { callTool, verifyToolAuth, getToolCalls, respondToolPermission } = require('~/server/controllers/tools');
 const { getAvailableTools } = require('~/server/controllers/PluginController');
 const { toolCallLimiter } = require('~/server/middleware/limiters');
 
@@ -35,5 +35,13 @@ router.get('/:toolId/auth', verifyToolAuth);
  * @returns {object} Result of code execution
  */
 router.post('/:toolId/call', toolCallLimiter, callTool);
+
+/**
+ * Handle tool permission responses from the frontend
+ * @route POST /agents/tools/respond-permission
+ * @param {object} req.body - Request body
+ * @returns {object} Result of the permission response handling
+ */
+router.post('/respond-permission', respondToolPermission);
 
 module.exports = router;

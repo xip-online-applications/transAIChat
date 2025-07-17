@@ -43,6 +43,7 @@ export default function useSSE(
   chatHelpers: ChatHelpers,
   isAddedRequest = false,
   runIndex = 0,
+  onToolPermissionRequest?: (toolRequest: any) => void,
 ) {
   const genTitle = useGenTitleMutation();
   const setActiveRunId = useSetRecoilState(store.activeRunFamily(runIndex));
@@ -116,8 +117,22 @@ export default function useSSE(
       }
     });
 
+    // General event logger for debugging
     sse.addEventListener('message', (e: MessageEvent) => {
-      const data = JSON.parse(e.data);
+      let data;
+      try {
+        data = JSON.parse(e.data);
+      } catch (err) {
+        console.error('Failed to parse SSE message data', err, e.data);
+        return;
+      }
+      // Check for embedded tool_permission_request event
+      if (data.event === 'tool_permission_request' && data.data) {
+        if (onToolPermissionRequest) {
+          onToolPermissionRequest(data.data);
+        }
+        return;
+      }
 
       if (data.final != null) {
         clearDraft(submission.conversation?.conversationId);

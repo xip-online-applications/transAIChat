@@ -14,6 +14,7 @@ const { getMCPManager, getFlowStateManager } = require('~/config');
 const { findToken, createToken, updateToken } = require('~/models');
 const { getCachedTools } = require('./Config');
 const { getLogStores } = require('~/cache');
+const ToolPermissionManager = require('~/server/services/ToolPermissionManager');
 
 /**
  * @param {object} params
@@ -134,7 +135,39 @@ async function createMCPTool({ req, res, toolKey, provider: _provider }) {
 
   /** @type {(toolArguments: Object | string, config?: GraphRunnableConfig) => Promise<unknown>} */
   const _call = async (toolArguments, config) => {
+    logger.info(
+      `[MCP][User: ${req.user.id}][${serverName}][${toolName}] Requesting user permission`,
+    );
+
+    // Human-in-the-loop permission check
+    const permissionId = `${normalizedToolKey}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const userId = config?.configurable?.user?.id || config?.configurable?.user_id;
+    const permissionKey = `${permissionId}:${userId}`;
+    const toolRequest = {
+      toolId: normalizedToolKey,
+      toolName,
+      toolDescription: description,
+      permissionId,
+      userId,
+      messageId: config?.metadata?.messageId,
+    };
+    // Await user permission using global manager, and emit SSE event
+    const granted = await ToolPermissionManager.requestPermission(
+      permissionKey,
+      toolRequest,
+      (event, data) => sendEvent(res, { event, data })
+    );
+    if (!granted) {
+      logger.warn(
+        `[MCP][User: ${req.user.id}][${serverName}][${toolName}] Tool call denied by user`,
+      );
+      return "Tool call denied by user";
+    }
+
+    logger.info(
+      `[MCP][User: ${req.user.id}][${serverName}][${toolName}] User permission granted, proceeding with tool call`,
+    );
+
     /** @type {ReturnType<typeof createAbortHandler>} */
     let abortHandler = null;
     /** @type {AbortSignal} */

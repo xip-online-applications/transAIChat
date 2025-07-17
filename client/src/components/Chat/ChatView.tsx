@@ -1,8 +1,8 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { useRecoilValue } from 'recoil';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
-import { Constants } from 'librechat-data-provider';
+import { Constants, request } from 'librechat-data-provider';
 import type { TMessage } from 'librechat-data-provider';
 import type { ChatFormValues } from '~/common';
 import { ChatContext, AddedChatContext, useFileMapContext, ChatFormProvider } from '~/Providers';
@@ -18,6 +18,7 @@ import Landing from './Landing';
 import Header from './Header';
 import Footer from './Footer';
 import store from '~/store';
+import ToolPermissionModal from './ToolPermissionModal';
 
 function LoadingSpinner() {
   return (
@@ -51,8 +52,50 @@ function ChatView({ index = 0 }: { index?: number }) {
   const chatHelpers = useChatHelpers(index, conversationId);
   const addedChatHelpers = useAddedResponse({ rootIndex: index });
 
-  useSSE(rootSubmission, chatHelpers, false);
-  useSSE(addedSubmission, addedChatHelpers, true);
+  // Use a queue for pending tool requests
+  const [toolQueue, setToolQueue] = useState<any[]>([]);
+
+  // Show modal if there is any pending request
+  const toolModalOpen = toolQueue.length > 0;
+  const pendingTool = toolQueue[0] || null;
+
+  // Callback for SSE tool permission event
+  const handleToolPermissionRequest = (toolRequest: any) => {
+    setToolQueue((prev) => [...prev, toolRequest]);
+  };
+
+  // Accept tool permission
+  const handleGrant = async () => {
+    if (pendingTool?.permissionId && pendingTool?.userId) {
+      console.log('Granting permission for tool:', pendingTool.toolName);
+      try {
+        await request.post('/api/agents/tools/respond-permission', {
+          permissionId: pendingTool.permissionId,
+          userId: pendingTool.userId,
+          granted: true,
+        });
+      } catch (_) {}
+    }
+    setToolQueue((prev) => prev.slice(1));
+  };
+
+  // Deny tool permission
+  const handleDeny = async () => {
+    if (pendingTool?.permissionId && pendingTool?.userId) {
+      console.log('Denying permission for tool:', pendingTool.toolName);
+      try {
+        await request.post('/api/agents/tools/respond-permission', {
+          permissionId: pendingTool.permissionId,
+          userId: pendingTool.userId,
+          granted: false,
+        });
+      } catch (_) {}
+    }
+    setToolQueue((prev) => prev.slice(1));
+  };
+
+  useSSE(rootSubmission, chatHelpers, false, 0, handleToolPermissionRequest);
+  useSSE(addedSubmission, addedChatHelpers, true, 1, handleToolPermissionRequest);
 
   const methods = useForm<ChatFormValues>({
     defaultValues: { text: '' },
@@ -103,6 +146,13 @@ function ChatView({ index = 0 }: { index?: number }) {
                 </div>
                 {isLandingPage && <Footer />}
               </>
+              <ToolPermissionModal
+                open={toolModalOpen}
+                toolName={pendingTool?.toolName || pendingTool?.name || ''}
+                toolDescription={pendingTool?.toolDescription || pendingTool?.description}
+                onGrant={handleGrant}
+                onDeny={handleDeny}
+              />
             </div>
           </Presentation>
         </AddedChatContext.Provider>
