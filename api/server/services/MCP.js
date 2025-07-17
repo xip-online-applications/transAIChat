@@ -161,7 +161,7 @@ async function createMCPTool({ req, res, toolKey, provider: _provider }) {
       logger.warn(
         `[MCP][User: ${req.user.id}][${serverName}][${toolName}] Tool call denied by user`,
       );
-      return "Tool call denied by user";
+      return ["Tool call denied by user, do not attempt to use this tool again.", null];
     }
 
     logger.info(
