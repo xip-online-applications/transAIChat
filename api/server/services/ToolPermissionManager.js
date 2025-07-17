@@ -11,7 +11,7 @@ class ToolPermissionManager {
    * @param {string} key - `${permissionId}:${userId}`
    * @param {object} toolRequest
    * @param {function} emitSSE - Function to emit SSE event (e.g. (event, data) => void)
-   * @returns {Promise<boolean>} true if granted, false if denied
+   * @returns {Promise<{ granted: boolean; reason: string }>} - true if granted, false if denied
    */
   static requestPermission(key, toolRequest, emitSSE) {
     logger.info(`[ToolPermissionManager] Received permission request for key: ${key}`);
@@ -31,12 +31,13 @@ class ToolPermissionManager {
    * Resolve a pending permission request for a tool.
    * @param {string} key - `${permissionId}:${userId}`
    * @param {boolean} granted
+   * @param {string | undefined } reason - Optional reason for the decision
    * @returns {boolean} true if resolved, false if not found
    */
-  static resolvePermission(key, granted) {
+  static resolvePermission(key, granted, reason) {
     const entry = this.pendingRequests.get(key);
     if (!entry) return false;
-    entry.resolver(granted);
+    entry.resolver({ granted, reason: reason });
     this.pendingRequests.delete(key);
     return true;
   }

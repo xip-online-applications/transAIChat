@@ -240,11 +240,11 @@ const callTool = async (req, res) => {
 
 // Endpoint for frontend to respond to tool permission requests
 const respondToolPermission = (req, res) => {
-  const { permissionId, userId, granted } = req.body;
+  const { permissionId, userId, granted, reason } = req.body;
   const key = `${permissionId}:${userId}`;
-  logger.info(`[respondToolPermission] Received permission response: key=${key}, granted=${granted}`);
+  logger.info(`[respondToolPermission] Received permission response: key=${key}, granted=${granted}, reason=${reason || ''}`);
   // Use the global ToolPermissionManager to resolve the request
-  const resolved = ToolPermissionManager.resolvePermission(key, granted);
+  const resolved = ToolPermissionManager.resolvePermission(key, granted, reason);
   if (resolved) {
     res.status(200).json({ success: true });
   } else {

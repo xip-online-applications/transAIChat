@@ -150,17 +150,21 @@ async function createMCPTool({ req, res, toolKey, provider: _provider }) {
       permissionId,
       userId,
       messageId: config?.metadata?.messageId,
+      toolInput: toolArguments,
     };
     // Await user permission using global manager, and emit SSE event
-    const granted = await ToolPermissionManager.requestPermission(
+    const { granted , reason } = await ToolPermissionManager.requestPermission(
       permissionKey,
       toolRequest,
       (event, data) => sendEvent(res, { event, data })
     );
+    // If denied, show reason to LLM if provided
     if (!granted) {
-      logger.warn(
-        `[MCP][User: ${req.user.id}][${serverName}][${toolName}] Tool call denied by user`,
-      );
+      // Try to get the denial reason from the ToolPermissionManager
+      const deniedRequest = ToolPermissionManager.getPendingRequest(permissionKey);
+      if (reason) {
+        return [`Tool call denied by user. Reason: ${reason}`, null];
+      }
       return ["Tool call denied by user, do not attempt to use this tool again.", null];
     }
 

@@ -80,7 +80,7 @@ function ChatView({ index = 0 }: { index?: number }) {
   };
 
   // Deny tool permission
-  const handleDeny = async () => {
+  const handleDeny = async (reason?: string) => {
     if (pendingTool?.permissionId && pendingTool?.userId) {
       console.log('Denying permission for tool:', pendingTool.toolName);
       try {
@@ -88,6 +88,7 @@ function ChatView({ index = 0 }: { index?: number }) {
           permissionId: pendingTool.permissionId,
           userId: pendingTool.userId,
           granted: false,
+          reason: reason || '',
         });
       } catch (_) {}
     }
@@ -150,8 +151,11 @@ function ChatView({ index = 0 }: { index?: number }) {
                 open={toolModalOpen}
                 toolName={pendingTool?.toolName || pendingTool?.name || ''}
                 toolDescription={pendingTool?.toolDescription || pendingTool?.description}
+                toolInput={pendingTool?.toolInput}
                 onGrant={handleGrant}
                 onDeny={handleDeny}
+                queueLength={toolQueue.length}
+                queueIndex={0}
               />
             </div>
           </Presentation>
