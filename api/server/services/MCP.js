@@ -183,7 +183,6 @@ async function createMCPTool({ req, res, toolKey, provider: _provider }) {
         ...toolArguments,
         token: req.headers.authorization,
       };
-      logger.info(toolArguments);
       const { args: _args, stepId, ...toolCall } = config.toolCall ?? {};
       const loginFlowId = `${serverName}:oauth_login:${config.metadata.thread_id}:${config.metadata.run_id}`;
       const oauthStart = createOAuthStart({
